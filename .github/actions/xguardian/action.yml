@@ -296,8 +296,9 @@ runs:
                 -d "${CREATE_APP_DATA}")
 
               if echo "$CREATE_APP_RESPONSE" | jq -e '.detail | contains("Usuário não autorizado a criar aplicações")' > /dev/null; then
-                echo "::error::Usuário não autorizado a criar aplicações. Verifique com o administrador da organização."
-                exit 1
+                echo "::warning::Usuário não autorizado a criar aplicações. Verificando permissão para iniciar scans..."
+              else
+                echo "Usuário autorizado a criar aplicações."
               fi
 
               # Verificar autorização para iniciar scan
@@ -327,7 +328,7 @@ runs:
                 exit 1
               fi
 
-              echo "Usuário autorizado a criar aplicações e iniciar scans."
+              echo "Usuário autorizado a iniciar scans. Continuando para os próximos steps."
 
         - name: Verificar se a aplicação existe, caso contrário, cria a aplicação
           shell: bash
