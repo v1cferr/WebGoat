@@ -1,4 +1,4 @@
-name: Security Scan # test com um usuario não admin (permitido criar scan, mas não criar app)
+name: Security Scan # test com fail pipeaction
 on:
     push:
         branches:
