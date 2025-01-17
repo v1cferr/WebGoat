@@ -1,4 +1,4 @@
-name: Security Scan # test com o usuario apenas com permissão para criar scans (mas não aplicações)
+name: Security Scan # test com as politicas de warning para SAST
 on:
     push:
         branches:
