@@ -17,12 +17,6 @@ inputs:
     api_password:
         description: "A senha para login/autenticação na API."
         required: true
-    api_token:
-        description: "O token de autenticação obtido durante o login."
-        required: true
-    gh_token:
-        description: "Token de acesso ao Github necessário para utilizar o comando gh CLI."
-        required: true
 
     # Nome da aplicação (default: nome do repositório)
     # Usado para criar a aplicação no XGuardian
@@ -173,13 +167,9 @@ runs:
           env:
               API_EMAIL: ${{ inputs.api_email }}
               API_PASSWORD: ${{ inputs.api_password }}
-              API_TOKEN: ${{ inputs.api_token }}
-              GH_TOKEN: ${{ inputs.gh_token }}
           run: |
               echo "API_EMAIL: $API_EMAIL"
               echo "API_PASSWORD: $API_PASSWORD"
-              echo "API_TOKEN: $API_TOKEN"
-              echo "GH_TOKEN: $GH_TOKEN"
 
               # Validar formato de email
               if [[ ! "$API_EMAIL" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
@@ -194,26 +184,13 @@ runs:
                 exit 1
               fi
 
-              # Validar formato do GH Token (fine-grained)
-              if [[ ! "$GH_TOKEN" =~ ^github_pat_[A-Za-z0-9_]{0,255}$ ]]; then
-                echo "::error::O token deve ser um GitHub fine-grained PAT (começando com 'github_pat_')"
-                exit 1
-              fi
-
-              # Validar API Token
-              if [ -z "$API_TOKEN" ]; then
-                echo "::error::API token não pode estar vazio"
-                exit 1
-              fi
-
-              echo "Todos os inputs sensíveis são válidos."
+              echo "Os dados dos inputs de Email e Senha estão válidos."
 
         - name: Validar e renovar token se necessário
           shell: bash
           env:
               API_EMAIL: ${{ inputs.api_email }}
               API_PASSWORD: ${{ inputs.api_password }}
-              API_TOKEN: ${{ inputs.api_token }}
           run: |
               set -e
 
@@ -247,8 +224,6 @@ runs:
 
         - name: Instalar dependências
           shell: bash
-          env:
-              GITHUB_TOKEN: ${{ inputs.gh_token }}
           run: |
               echo "Atualizando pacotes..."
               sudo apt-get update
@@ -260,14 +235,12 @@ runs:
               && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
               && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
               && sudo apt update \
-              && sudo apt install gh -y
 
         - name: Fazer login na API e armazenar o token
           shell: bash
           env:
               API_EMAIL: ${{ inputs.api_email }}
               API_PASSWORD: ${{ inputs.api_password }}
-              GITHUB_TOKEN: ${{ inputs.gh_token }}
           run: |
               # Remover ou comentar estes logs de debug em produção
               echo "Debug: API_EMAIL: ${API_EMAIL}"
@@ -283,7 +256,6 @@ runs:
                 }' | jq -r '.token')
                 
               if [ -n "$response" ] && [ "$response" != "null" ]; then
-                echo -n "$response" | gh secret set API_TOKEN
                 echo "API_TOKEN=$response" >> $GITHUB_ENV
                 echo "Token atualizado com sucesso."
               else
@@ -529,7 +501,7 @@ runs:
               EXCLUDE: ${{ inputs.exclude }}
               PDF: ${{ inputs.pdf }}
               SCAN_VERSION: ${{ format('{0}-{1}', inputs.app_name, steps.vars.outputs.short_sha) }}
-              API_TOKEN: ${{ inputs.api_token }}
+              API_TOKEN: ${{ env.API_TOKEN }}
           run: |
               UPLOAD_URL="https://uploader-mvp.development.xguardianplatform.io/upload-url"
 
@@ -571,7 +543,7 @@ runs:
           if: ${{ inputs.dast == 'true' }}
           shell: bash
           env:
-              API_TOKEN: ${{ inputs.api_token }}
+              API_TOKEN: ${{ env.API_TOKEN }}
               APP_ID: ${{ env.APP_ID }}
               SCAN_VERSION: ${{ format('{0}-{1}', inputs.app_name, steps.vars.outputs.short_sha) }}
               SITE_URL: ${{ inputs.site_url }}
@@ -726,7 +698,7 @@ runs:
           if: ${{ inputs.get_scan_id == 'true' }}
           env:
               APP_ID: ${{ env.APP_ID }}
-              API_TOKEN: ${{ inputs.api_token }}
+              API_TOKEN: ${{ env.API_TOKEN }}
               SCAN_VERSION: ${{ format('{0}-{1}', inputs.app_name, steps.vars.outputs.short_sha) }}
               APP_NAME: ${{ inputs.app_name }}
           run: |
@@ -815,7 +787,7 @@ runs:
         - name: Aguardar finalização do scan
           shell: bash
           env:
-              API_TOKEN: ${{ inputs.api_token }}
+              API_TOKEN: ${{ env.API_TOKEN }}
               APP_ID: ${{ env.APP_ID }}
               SCAN_VERSION: ${{ format('{0}-{1}', inputs.app_name, steps.vars.outputs.short_sha) }}
           run: |
@@ -870,7 +842,7 @@ runs:
         - name: Buscar vulnerabilidades e comparar com políticas
           shell: bash
           env:
-              API_TOKEN: ${{ inputs.api_token }}
+              API_TOKEN: ${{ env.API_TOKEN }}
               APP_ID: ${{ env.APP_ID }}
               SCAN_VERSION: ${{ format('{0}-{1}', inputs.app_name, steps.vars.outputs.short_sha) }}
               SAST_CRITICAL: ${{ env.SAST_CRITICAL }}
@@ -1071,7 +1043,7 @@ runs:
           shell: bash
           env:
               APP_ID: ${{ env.APP_ID }}
-              API_TOKEN: ${{ inputs.api_token }}
+              API_TOKEN: ${{ env.API_TOKEN }}
           run: |
               PATCH_URL="https://uploader-mvp.development.xguardianplatform.io/accept_save_vulns"
               DATA=$(cat << EOF
