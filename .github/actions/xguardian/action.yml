@@ -569,6 +569,11 @@ runs:
 
               echo "Resposta completa da solicitação: ${RESPONSE}"
 
+              if echo "$RESPONSE" | grep -q '"detail": "Usuário não autorizado a iniciar scans."'; then
+                echo "::warning::Usuário não autorizado a iniciar scans. Verifique com o administrador da organização."
+                exit 0
+              fi
+
               GET_UPLOAD_URL=$(echo "${RESPONSE}" | jq -r '.url')
 
               if [ -z "$GET_UPLOAD_URL" ] || [ "$GET_UPLOAD_URL" = "null" ]; then
