@@ -263,6 +263,72 @@ runs:
                 exit 1
               fi
 
+        - name: Verificar autorização do usuário
+          shell: bash
+          env:
+              API_TOKEN: ${{ env.API_TOKEN }}
+              APP_ID: ${{ env.APP_ID }}
+              TEAM_ID: ${{ inputs.team_id }}
+          run: |
+              # Verificar autorização para criar aplicação
+              CREATE_APP_URL="https://uploader-mvp.development.xguardianplatform.io/create_app"
+              CREATE_APP_DATA=$(cat << EOF
+              {
+                "app_name": "aplicacao-para-verificar-permissao",
+                "team_id": ${TEAM_ID},
+                "languages": ["JavaScript"],
+                "description": "Aplicação para verificar permissão de criação",
+                "policy": 0,
+                "policy_sast": 0,
+                "policy_sca": 0,
+                "policy_dast": 0,
+                "policy_container": 0,
+                "microservices": false,
+                "microservices_data": [{"name": "string", "language": ["string"]}]
+              }
+              EOF
+              )
+
+              CREATE_APP_RESPONSE=$(curl -sS -X POST "${CREATE_APP_URL}" \
+                -H 'accept: application/json' \
+                -H "Authorization: Bearer ${API_TOKEN}" \
+                -H 'Content-Type: application/json' \
+                -d "${CREATE_APP_DATA}")
+
+              if echo "$CREATE_APP_RESPONSE" | jq -e '.detail | contains("Usuário não autorizado a criar aplicações")' > /dev/null; then
+                echo "::error::Usuário não autorizado a criar aplicações. Verifique com o administrador da organização."
+                exit 1
+              fi
+
+              # Verificar autorização para iniciar scan
+              UPLOAD_URL="https://uploader-mvp.development.xguardianplatform.io/upload-url"
+              UPLOAD_DATA=$(cat << EOF
+              {
+                "app_id": 1421,
+                "scan_version": "scan-para-verificar-permissao",
+                "file_type": "application/zip",
+                "sca": "false",
+                "sast": "true",
+                "translate": "false",
+                "exclude": "",
+                "pdf": "false"
+              }
+              EOF
+              )
+
+              UPLOAD_RESPONSE=$(curl -sS -X POST "${UPLOAD_URL}" \
+                -H 'accept: application/json' \
+                -H "Authorization: Bearer ${API_TOKEN}" \
+                -H 'Content-Type: application/json' \
+                -d "${UPLOAD_DATA}")
+
+              if echo "$UPLOAD_RESPONSE" | jq -e '.detail | contains("Usuário não autorizado a iniciar scans")' > /dev/null; then
+                echo "::error::Usuário não autorizado a iniciar scans. Verifique com o administrador da organização."
+                exit 1
+              fi
+
+              echo "Usuário autorizado a criar aplicações e iniciar scans."
+
         - name: Verificar se a aplicação existe, caso contrário, cria a aplicação
           shell: bash
           env:
