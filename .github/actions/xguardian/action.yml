@@ -280,6 +280,7 @@ runs:
               CLEAN_APP_NAME=$(echo "${APP_NAME}" | tr -c '[:alnum:] ' ' ')
 
               CREATE_APP_URL="https://uploader-mvp.development.xguardianplatform.io/create_app"
+              GET_APPS_URL="https://uploader-mvp.development.xguardianplatform.io/get_apps?page=1&items_per_page=10"
 
               DATA=$(cat << EOF
               {
@@ -293,8 +294,7 @@ runs:
                 "policy_dast": ${POLICY_DAST},
                 "policy_container": 0,
                 "microservices": $([[ "${MICROSERVICES}" == "true" ]] && echo true || echo false)
-                $([[ "${MICROSERVICES}" == "true" ]] && echo ',
-                "microservices_data": ${MICROSERVICES_DATA}')
+                $([[ "${MICROSERVICES}" == "true" ]] && echo ',"microservices_data": ${MICROSERVICES_DATA}')
               }
               EOF
               )
@@ -330,32 +330,72 @@ runs:
               else
                 ERROR_STATUS=$(echo "$RESPONSE" | jq -r '.status // empty')
                 ERROR_DETAIL=$(echo "$RESPONSE" | jq -r '.detail // empty')
-                
+
                 if [[ "$ERROR_STATUS" = "400" ]] || [[ "$ERROR_DETAIL" == *"já existe"* ]]; then
                   echo "A aplicação já existe. Buscando o APP_ID existente..."
                   # Buscar o APP_ID da aplicação existente
                   EXISTING_APP=$(curl -sS -X GET \
-                    'https://uploader-mvp.development.xguardianplatform.io/get_apps_total' \
+                    "${GET_APPS_URL}" \
                     -H 'accept: application/json' \
                     -H "Authorization: Bearer ${API_TOKEN}" )
-                  
+
                   # Verifica se a resposta é um JSON válido
                   if ! echo "$EXISTING_APP" | jq . >/dev/null 2>&1; then
                     echo "::error::Resposta da API não é um JSON válido: $EXISTING_APP"
                     exit 1
                   fi
 
-                  APP_ID=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.[] | select(.name == $NAME) | .id')
+                  APP_ID=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.data[] | select(.name == $NAME) | .id')
 
                   if [ -n "$APP_ID" ]; then
                     echo "APP_ID encontrado: $APP_ID para a aplicação: $APP_NAME"
                     echo "Detalhes da aplicação:"
-                    echo "$EXISTING_APP" | jq --arg NAME "$APP_NAME" '.[] | select(.name == $NAME)'
+                    echo "$EXISTING_APP" | jq --arg NAME "$APP_NAME" '.data[] | select(.name == $NAME)'
                     echo "APP_ID=$APP_ID" >> $GITHUB_ENV
 
-                    POLICY_SAST=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.[] | select(.name == $NAME) | .policies_id_sast')
-                    POLICY_SCA=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.[] | select(.name == $NAME) | .policies_id_sca')
-                    POLICY_DAST=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.[] | select(.name == $NAME) | .policies_id_dast')
+                    POLICY_SAST=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.data[] | select(.name == $NAME) | .policies_id_sast')
+                    POLICY_SCA=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.data[] | select(.name == $NAME) | .policies_id_sca')
+                    POLICY_DAST=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.data[] | select(.name == $NAME) | .policies_id_dast')
+
+                    if [ -n "$POLICY_SAST" ]; then
+                      echo "POLICY_SAST=$POLICY_SAST" >> $GITHUB_ENV
+                    fi
+
+                    if [ -n "$POLICY_SCA" ]; then
+                      echo "POLICY_SCA=$POLICY_SCA" >> $GITHUB_ENV
+                    fi
+
+                    if [ -n "$POLICY_DAST" ]; then
+                      echo "POLICY_DAST=$POLICY_DAST" >> $GITHUB_ENV
+                    fi
+                  else
+                    echo "::error::Não foi possível encontrar o APP_ID da aplicação existente"
+                    exit 1
+                  fi
+                elif [[ "$ERROR_DETAIL" == *"Usuário não autorizado"* ]]; then
+                  echo "Usuário não autorizado a criar aplicações. Verificando se a aplicação já existe..."
+                  EXISTING_APP=$(curl -sS -X GET \
+                    "${GET_APPS_URL}" \
+                    -H 'accept: application/json' \
+                    -H "Authorization: Bearer ${API_TOKEN}" )
+
+                  # Verifica se a resposta é um JSON válido
+                  if ! echo "$EXISTING_APP" | jq . >/dev/null 2>&1; then
+                    echo "::error::Resposta da API não é um JSON válido: $EXISTING_APP"
+                    exit 1
+                  fi
+
+                  APP_ID=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.data[] | select(.name == $NAME) | .id')
+
+                  if [ -n "$APP_ID" ]; then
+                    echo "APP_ID encontrado: $APP_ID para a aplicação: $APP_NAME"
+                    echo "Detalhes da aplicação:"
+                    echo "$EXISTING_APP" | jq --arg NAME "$APP_NAME" '.data[] | select(.name == $NAME)'
+                    echo "APP_ID=$APP_ID" >> $GITHUB_ENV
+
+                    POLICY_SAST=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.data[] | select(.name == $NAME) | .policies_id_sast')
+                    POLICY_SCA=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.data[] | select(.name == $NAME) | .policies_id_sca')
+                    POLICY_DAST=$(echo "$EXISTING_APP" | jq -r --arg NAME "$APP_NAME" '.data[] | select(.name == $NAME) | .policies_id_dast')
 
                     if [ -n "$POLICY_SAST" ]; then
                       echo "POLICY_SAST=$POLICY_SAST" >> $GITHUB_ENV
