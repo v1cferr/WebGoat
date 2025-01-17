@@ -540,7 +540,7 @@ runs:
                 "file_type": "application/zip",
                 "sca": "${SCA}",
                 "sast": "${SAST}",
-                "translate": "false", 
+                "translate": "${TRANSLATE}", 
                 "exclude": "${EXCLUDE}",
                 "pdf": "${PDF}"
               }
