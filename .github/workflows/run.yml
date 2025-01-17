@@ -18,6 +18,7 @@ jobs:
               with:
                   api_email: ${{ secrets.API_EMAIL }}
                   api_password: ${{ secrets.API_PASSWORD }}
+                  is_development: "true"
                   app_name: "nome-da-aplicacao"
                   team_id: "[1115]"
                   # dast: "true"
