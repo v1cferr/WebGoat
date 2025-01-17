@@ -25,6 +25,7 @@ jobs:
                   # dast: "true"
                   # site_url: "https://google-gruyere.appspot.com/624428532281904487808630263280165796082/"
                   sast: "true"
+# Secrets do GitHub estão atualizados - testando na development do XGuardian
 # name: Build and Security Scan
 # # coment para testes workflow
 
